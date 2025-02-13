@@ -13,18 +13,20 @@ import ItemApartment from '../../../components/ItemApartment';
 import { getStorage } from '@react-native-firebase/storage';
 import Input from '../../../components/Input';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { clearApartments, setApartmentsList } from '../../../redux/slices/apartmentReducer';
+import { clearUser } from '../../../redux/slices/authReducer';
 const { width } = Dimensions.get('window');
 
 const Home = () => {
     const dispatch = useDispatch();
     const navigation = useNavigation();
     const userData = useSelector(state => state.auth.user);
+    const apartmentsData = useSelector(state => state.apartments.apartments);
     const [isProfileDropdownVisible, setProfileDropdownVisible] = useState(false);
     const [search, setSearch] = useState('');
     const [isSortDropdownVisible, setSortDropdownVisible] = useState(false);
     const [sortBy, setSortBy] = useState(null);
-    const [apartments, setApartments] = useState([]);
-    const [filteredApartments, setFilteredApartments] = useState([]);
+    const [filteredApartments, setFilteredApartments] = useState(apartmentsData);
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -32,9 +34,10 @@ const Home = () => {
     }, []);
 
     useEffect(() => {
-        let filtered = apartments;
+        let filtered = apartmentsData;
+
         if (search) {
-            filtered = apartments.filter(apartment =>
+            filtered = apartmentsData.filter(apartment =>
                 apartment?.title?.toLowerCase()?.includes(search?.toLowerCase()) ||
                 apartment?.location?.toLowerCase()?.includes(search?.toLowerCase())
             );
@@ -45,7 +48,7 @@ const Home = () => {
         }
 
         setFilteredApartments(filtered);
-    }, [search, apartments, sortBy]);
+    }, [search, apartmentsData, sortBy]);
 
     const sortApartments = (apartments, criteria) => {
         if (criteria === 'price') {
@@ -72,10 +75,9 @@ const Home = () => {
                 ...doc.data(),
             }));
 
-            setApartments(apartments);
-            setFilteredApartments(apartments);
+            dispatch(setApartmentsList(apartments));
         } catch (error) {
-            Alert.alert('Error', 'Failed to fetch apartments');
+            console.log('Failed to fetch apartments', error);
         } finally {
             dispatch(setLoading(false));
             setIsLoading(false);
@@ -83,8 +85,6 @@ const Home = () => {
     };
 
     const deleteApartment = async (apartmentId, imageUrl) => {
-        console.log("🚀 ~ deleteApartment ~ imageUrl:", imageUrl)
-        console.log("🚀 ~ deleteApartment ~ apartmentId:", apartmentId)
         Alert.alert(
             "Delete Apartment",
             "Are you sure you want to delete this apartment?",
@@ -103,7 +103,7 @@ const Home = () => {
                             //     await storageRef.delete();
                             // }
 
-                            setApartments(prevApartments => prevApartments.filter(apartment => apartment.id !== apartmentId));
+                            dispatch(setApartmentsList(prevApartments => prevApartments.filter(apartment => apartment.id !== apartmentId)));
 
                             Alert.alert("Success", "Apartment deleted successfully.");
                         } catch (error) {
@@ -134,6 +134,7 @@ const Home = () => {
                             await getAuth().signOut();
                             navigation.replace('OnBoarding');
                             dispatch(clearUser())
+                            dispatch(clearApartments());
                         } catch (error) {
                             console.log('Error logging out: ', error);
                         }
